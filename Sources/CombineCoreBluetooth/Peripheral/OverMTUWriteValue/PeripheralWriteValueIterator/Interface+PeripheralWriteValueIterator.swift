@@ -6,6 +6,6 @@
 //
 
 public protocol PeripheralWriteValueIterator {
-    func isFinished(_ index: Int, _ data: Data) -> Bool
-    func slice(at index: Int, with data: Data) -> Data?
+    func isFinished(_ index: Int, _ data: Data, maxMTU: Int) -> Bool
+    func slice(at index: Int, with data: Data, maxMTU: Int) -> Data?
 }

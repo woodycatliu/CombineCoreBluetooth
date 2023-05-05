@@ -127,7 +127,10 @@ fileprivate extension Publishers.OverMTUWriteValueSubscription {
         
         let iterator = iterator
         
-        guard let sliceData = iterator.slice(at: index, with: data) else {
+        guard let sliceData = iterator.slice(at: index,
+                                             with: data,
+                                             maxMTU: peripheral.maximumWriteValueLength(for: .withResponse))
+        else {
             subscriber?.receive(completion: .finished)
             return
         }
@@ -141,14 +144,16 @@ fileprivate extension Publishers.OverMTUWriteValueSubscription {
         }
         .sink { [weak self] output in
             guard let self = self,
-            !iterator.isFinished(index, self.data) else {
+                  !iterator.isFinished(index,
+                                       self.data,
+                                       maxMTU: peripheral.maximumWriteValueLength(for: .withResponse))
+            else {
                 _ = self?.subscriber?.receive(())
                 self?.subscriber?.receive(completion: .finished)
                 return
             }
             self.writeValue(at: index + 1)
         }.store(in: &bag)
-        
     }
     
 }
