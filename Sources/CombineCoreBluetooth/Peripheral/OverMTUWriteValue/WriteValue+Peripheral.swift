@@ -9,22 +9,53 @@ import Foundation
 import Combine
 import CoreBluetooth
 
-extension Publishers {
+public extension Peripheral {
+    
+    func writeValueWithChunkedThanMTU(with data: Data,
+                                      serviceUUID sid: UUID,
+                                      characteristicUUID cid: UUID,
+                                      dataIterator: PeripheralWriteValueIterator) -> AnyPublisher<Void, Error> {
+        return Publishers.OverMTUWriteValuePublisher(data: data,
+                                                     peripheral: self,
+                                                     serviceUUID: sid,
+                                                     characteristicUUID: cid,
+                                                     dataIterator: dataIterator)
+        .eraseToAnyPublisher()
+    }
+}
+
+ fileprivate extension Publishers {
     
     struct OverMTUWriteValuePublisher: Publisher {
         
+        let data: Data
+                
+        let peripheral: Peripheral
+        
+        let serviceUUID: UUID
+        
+        let characteristicUUID: UUID
+        
+        let dataIterator: PeripheralWriteValueIterator
+                
         typealias Output = Void
         
         typealias Failure = Error
         
         func receive<S>(subscriber: S) where S : Subscriber, Failure == S.Failure, Void == S.Input {
-            
+            let subscription = OverMTUWriteValueSubscription(subscriber,
+                                                             data: data,
+                                                             peripheral: peripheral,
+                                                             characteristicUUID: characteristicUUID,
+                                                             serviceUUID: serviceUUID,
+                                                             dataIterator: dataIterator)
+            subscriber.receive(subscription: subscription)
         }
         
         
     }
     
-    fileprivate class OverMTUWriteValueSubscription<Failure: Error>: Subscription {
+    class OverMTUWriteValueSubscription<Failure: Error>: Subscription {
         
         typealias Output = Void
         
@@ -45,10 +76,15 @@ extension Publishers {
         func request(_ demand: Subscribers.Demand) {
             lock.lock(); defer { lock.unlock() }
             self.leftDemand += demand
+            
+            guard !isWriting else { return }
+            isWriting = true
+            writeValue()
         }
         
         func cancel() {
-            
+            lock.lock(); defer { lock.unlock() }
+            self.subscriber = nil
         }
         
         private let iterator: PeripheralWriteValueIterator
@@ -70,6 +106,8 @@ extension Publishers {
         private var bag = Set<AnyCancellable>()
         
         private var lock = NSRecursiveLock()
+        
+        private var isWriting: Bool = false
     }
 }
 
@@ -113,32 +151,6 @@ fileprivate extension Publishers.OverMTUWriteValueSubscription {
         
     }
     
-}
-
-
-extension Peripheral {
-    
-    public func listerForWrites(with characteristic: CBUUID, in service: CBUUID) -> AnyPublisher<Void, Error> {
-        return discoverCharacteristic(withUUID: characteristic, inServiceWithUUID: service)
-            .flatMap { characteristic in
-                self.didWriteValueForCharacteristic
-                    .filter({ (readCharacteristic, error) -> Bool in
-                        return readCharacteristic.uuid == characteristic.uuid
-                    })
-                    .tryMap {
-                        if let error = $1 { throw error }
-                        return $0.value
-                    }
-                    .map { _ in }
-            }
-            .eraseToAnyPublisher()
-    }
-    
-}
-
-protocol PeripheralWriteValueIterator {
-    func isFinished(_ index: Int, _ data: Data) -> Bool
-    func slice(at index: Int, with data: Data) -> Data?
 }
 
 fileprivate extension Publisher {
