@@ -14,7 +14,7 @@ public extension Peripheral {
     func writeValueWithChunkedThanMTU(with data: Data,
                                       serviceUUID sid: UUID,
                                       characteristicUUID cid: UUID,
-                                      dataIterator: PeripheralWriteValueIterator) -> AnyPublisher<Void, Error> {
+                                      dataIterator: PeripheralWriteValueIterator = Peripheral.WriteValueIterator.nonMutatingIterator) -> AnyPublisher<Void, Error> {
         return Publishers.OverMTUWriteValuePublisher(data: data,
                                                      peripheral: self,
                                                      serviceUUID: sid,
