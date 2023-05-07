@@ -9,7 +9,7 @@ struct DefaultPeripheralWriteValueIterator: PeripheralWriteValueIterator {
     
     func isFinished(_ index: Int, _ data: Data, maxMTU: Int) -> Bool {
         let maxCount = data.count
-        return (index + 1) * maxMTU >= (maxCount - 1)
+        return (index + 1) * maxMTU >= maxCount
     }
     
     func slice(at index: Int, with data: Data, maxMTU: Int) -> Data? {
